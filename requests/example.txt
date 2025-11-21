@@ -1,0 +1,6 @@
+POST https://httpbin.org/post HTTP/1.1
+Host: httpbin.org
+User-Agent: requester-placeholder-demo/1.0
+Content-Type: application/x-www-form-urlencoded
+
+title={x}&message={y}

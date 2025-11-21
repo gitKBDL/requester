@@ -1,0 +1,22 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+
+# Environments
+.venv/
+env/
+venv/
+
+# Local outputs
+requester.zip
+responses/
+
+# Ignore user-specific request and placeholder files
+requests/*
+!requests/example*
+placeholders/*
+!placeholders/x.txt
+!placeholders/y.txt
+
+# OS noise
+.DS_Store
