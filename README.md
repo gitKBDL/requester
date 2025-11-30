@@ -56,6 +56,21 @@ python requester.py
 
 ---
 
+## 🐳 Docker
+
+Run the project in an isolated container without installing Python locally.
+
+```bash
+# Build and run
+docker-compose up --build
+
+# Run in background
+docker-compose up -d
+```
+Volumes are mapped, so you can edit `requests/` or `config.py` locally, and the container will see them. Logs are available in `logs/`.
+
+---
+
 ## 📖 User Guide
 
 ### 📂 Request Files (`requests/*.txt`)

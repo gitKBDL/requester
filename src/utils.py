@@ -1,4 +1,5 @@
 import logging
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
 import re
@@ -8,9 +9,30 @@ import config
 
 def setup_logging():
     colorama_init(autoreset=True)
-    handler = logging.StreamHandler()
-    handler.setFormatter(ColorFormatter())
-    logging.basicConfig(level=logging.INFO, handlers=[handler])
+    
+    # Create logs directory
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    
+    handlers = []
+    
+    # Console Handler
+    console_handler = logging.StreamHandler()
+    console_handler.setFormatter(ColorFormatter())
+    handlers.append(console_handler)
+    
+    # File Handler (Rotating)
+    file_handler = RotatingFileHandler(
+        log_dir / "app.log", 
+        maxBytes=5*1024*1024, # 5 MB
+        backupCount=3,
+        encoding="utf-8"
+    )
+    file_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", "%Y-%m-%d %H:%M:%S")
+    file_handler.setFormatter(file_formatter)
+    handlers.append(file_handler)
+
+    logging.basicConfig(level=logging.INFO, handlers=handlers)
 
 class ColorFormatter(logging.Formatter):
     COLORS = {

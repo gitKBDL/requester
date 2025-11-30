@@ -8,7 +8,7 @@ env/
 venv/
 
 # Local outputs
-requester.zip
+logs/
 responses/
 
 # Ignore user-specific request and placeholder files

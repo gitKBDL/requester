@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  requester:
+    build: .
+    volumes:
+      - ./requests:/app/requests
+      - ./proxies.txt:/app/proxies.txt
+      - ./placeholders:/app/placeholders
+      - ./responses:/app/responses
+      - ./logs:/app/logs
+      - ./config.py:/app/config.py
+    # Uncomment to override default command
+    # command: python requester.py --check
