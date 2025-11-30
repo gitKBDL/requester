@@ -5,6 +5,9 @@ import concurrent.futures
 from pathlib import Path
 from typing import Iterable
 import requests
+from rich.console import Console
+from rich.table import Table
+
 import config
 
 from .utils import ResponseSink, setup_logging
@@ -12,6 +15,7 @@ from .models import parse_raw_request
 from .placeholders import PlaceholderResolver
 from .proxies import load_proxies, check_proxies, ProxyPool, ProxyExhausted
 from .network import send_with_proxy_failover
+from .metrics import Metrics
 
 def iter_request_files() -> Iterable[Path]:
     folder = Path(config.REQUESTS_DIR)
@@ -77,24 +81,54 @@ def process_single_request(
     resolver: PlaceholderResolver,
     session: requests.Session,
     pool: ProxyPool,
-    response_sink: ResponseSink
+    response_sink: ResponseSink,
+    metrics: Metrics
 ) -> None:
     try:
         raw_text = path.read_text(encoding="utf-8")
         raw_text = resolver.replace(raw_text)
         parsed = parse_raw_request(raw_text)
-        # Note: Session is not thread-safe if we modify it, but requests.Session 
-        # is generally thread-safe for making requests.
-        # However, to be purely safe with cookies/adapters, one might want distinct sessions 
-        # or a thread-local session. For raw replaying, sharing is usually fine or desired (cookies).
+        
         response = send_with_proxy_failover(parsed, session, pool)
+        metrics.record_response(response.status_code)
+        
         if response_sink.enabled():
             response_sink.write(response)
     except Exception as exc:
+        metrics.record_error()
         logging.error("Failed to send %s: %s", path.name, exc)
+
+def print_summary(metrics: Metrics) -> None:
+    console = Console()
+    stats = metrics.stats
+    
+    table = Table(title="Session Summary", show_header=True, header_style="bold magenta")
+    table.add_column("Metric", style="dim")
+    table.add_column("Value", justify="right")
+
+    table.add_row("Total Requests", str(stats.total))
+    table.add_row("Success (2xx/3xx)", f"[green]{stats.success}[/green]")
+    table.add_row("Failed (4xx/5xx)", f"[red]{stats.failed}[/red]")
+    
+    console.print("\n")
+    console.print(table)
+    
+    # Top status codes
+    if stats.codes:
+        code_table = Table(title="Status Codes", show_header=True)
+        code_table.add_column("Code")
+        code_table.add_column("Count", justify="right")
+        
+        for code, count in sorted(stats.codes.items(), key=lambda x: x[1], reverse=True):
+            color = "green" if 200 <= code < 400 else "red"
+            code_label = str(code) if code != -1 else "Network Error"
+            code_table.add_row(f"[{color}]{code_label}[/{color}]", str(count))
+            
+        console.print(code_table)
 
 def run_loop(args: argparse.Namespace) -> None:
     session = requests.Session()
+    metrics = Metrics()
 
     proxies = [] if args.direct else load_proxies(Path(args.proxy_file))
     if args.direct and proxies:
@@ -136,10 +170,9 @@ def run_loop(args: argparse.Namespace) -> None:
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
                 futures = [
-                    executor.submit(process_single_request, path, resolver, session, pool, response_sink)
+                    executor.submit(process_single_request, path, resolver, session, pool, response_sink, metrics)
                     for path in files
                 ]
-                # Wait for all to complete
                 concurrent.futures.wait(futures)
 
             time.sleep(config.INTERVAL_SECONDS)
@@ -149,6 +182,7 @@ def run_loop(args: argparse.Namespace) -> None:
         logging.error("%s. Terminating.", exc)
     finally:
         session.close()
+        print_summary(metrics)
 def main() -> None:
     setup_logging()
     args = parse_args()

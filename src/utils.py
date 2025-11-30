@@ -2,23 +2,25 @@ import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
-import re
 import requests
-from colorama import Fore, Style, init as colorama_init
+from rich.logging import RichHandler
 import config
 
 def setup_logging():
-    colorama_init(autoreset=True)
-    
     # Create logs directory
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
     
     handlers = []
     
-    # Console Handler
-    console_handler = logging.StreamHandler()
-    console_handler.setFormatter(ColorFormatter())
+    # Console Handler (Rich)
+    # rich.traceback.install() can be added in app.py if desired
+    console_handler = RichHandler(
+        rich_tracebacks=True,
+        markup=True,
+        show_path=False
+    )
+    console_handler.setFormatter(logging.Formatter("%(message)s"))
     handlers.append(console_handler)
     
     # File Handler (Rotating)
@@ -32,24 +34,13 @@ def setup_logging():
     file_handler.setFormatter(file_formatter)
     handlers.append(file_handler)
 
-    logging.basicConfig(level=logging.INFO, handlers=handlers)
-
-class ColorFormatter(logging.Formatter):
-    COLORS = {
-        logging.DEBUG: Fore.CYAN,
-        logging.INFO: Fore.GREEN,
-        logging.WARNING: Fore.YELLOW,
-        logging.ERROR: Fore.RED,
-        logging.CRITICAL: Fore.RED + Style.BRIGHT,
-    }
-
-    def format(self, record: logging.LogRecord) -> str:  # type: ignore[override]
-        color = self.COLORS.get(record.levelno, "")
-        reset = Style.RESET_ALL
-        time_str = self.formatTime(record, "%H:%M:%S")
-        level = f"{record.levelname:<8}"
-        msg = record.getMessage()
-        return f"{Fore.WHITE}{time_str}{reset} {color}{level}{reset} {msg}"
+    # Configure root logger
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=handlers
+    )
 
 def format_response_block(response: requests.Response) -> str:
     status_line = f"{response.status_code} {response.reason} {response.url}"

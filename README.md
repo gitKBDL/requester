@@ -18,6 +18,8 @@ Everything is file-based (plain text), making it easy to version control and edi
 - **⚡ Parallel Checker**: Built-in tool to check thousands of proxies concurrently.
 - **🔌 Plug & Play**: No complex databases. Just text files.
 - **🔍 Response Dumping**: Inspect responses in the console or save them to files.
+- **📊 Metrics & Reporting**: Tracks success rates and prints a beautiful summary table on exit.
+- **🎨 Rich UI**: Colored logs and formatted output.
 
 ---
 
