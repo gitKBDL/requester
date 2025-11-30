@@ -1,0 +1,12 @@
+POST /api/v1/login HTTP/1.1
+Host: api.example.com
+Content-Type: application/json
+User-Agent: {user_agent}
+X-Request-ID: {uuid}
+X-Timestamp: {timestamp}
+
+{
+  "username": "user_{random_int:1000:9999}",
+  "password": "secret_password",
+  "device_id": "{uuid}"
+}

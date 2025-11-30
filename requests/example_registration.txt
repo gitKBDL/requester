@@ -1,0 +1,8 @@
+POST /register HTTP/1.1
+Host: www.target-site.com
+Content-Type: application/x-www-form-urlencoded
+Referer: https://www.target-site.com/signup
+User-Agent: {user_agent}
+Cookie: session_id={uuid}; region={country}
+
+email={email}&first_name={first_name}&last_name={last_name}&age={random_int:18:60}&agree_terms=on

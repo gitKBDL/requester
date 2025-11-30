@@ -1,0 +1,8 @@
+GET /headers HTTP/1.1
+Host: httpbin.org
+Accept: application/json
+User-Agent: {faker:chrome}
+Authorization: Bearer token_{random_int:10000:99999}
+X-Forwarded-For: {faker:ipv4}
+X-Custom-Data: {faker:md5}
+

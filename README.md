@@ -96,6 +96,15 @@ python requester.py
 
 ---
 
+## 📚 Examples
+The `requests/` folder contains template examples. They are **ignored** by default (because they start with `example`). To use them, rename them (e.g., remove `example_` prefix).
+
+- `requests/example_login.txt`: JSON POST request with `{uuid}` and `{timestamp}`.
+- `requests/example_registration.txt`: Form submit using **Faker** (`{email}`, `{first_name}`, `{user_agent}`).
+- `requests/example_complex_headers.txt`: Shows custom headers like `X-Forwarded-For` with `{faker:ipv4}`.
+
+---
+
 ## ⚙️ Configuration
 Edit `config.py` to tweak the behavior:
 
