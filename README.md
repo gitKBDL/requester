@@ -64,9 +64,12 @@ python requester.py
 - **Ignored Files**: Files starting with `example` (e.g., `requests/example_login.txt`) are skipped.
 
 ### 🧩 Placeholders (`{name}`)
-- Define values in `placeholders/name.txt`.
-- One value per line.
-- Supports **Sequential** (default) or **Random** rotation (see `config.py`).
+- **File-based**: Define values in `placeholders/name.txt` (one per line).
+- **Dynamic (Built-in)**:
+  - `{uuid}`: Generates a random UUID v4.
+  - `{timestamp}`: Current UNIX timestamp (seconds).
+  - `{random_int:min:max}`: Random integer between min and max (e.g., `{random_int:100:999}`).
+- **Rotation**: File-based values support **Sequential** (default) or **Random** rotation (see `config.py`).
 
 ### 🌐 Proxy System (`proxies.txt`)
 - **Formats**: `ip:port`, `user:pass@ip:port`, `http://...`, `socks5://...`.
@@ -82,6 +85,7 @@ python requester.py
 | :--- | :--- |
 | `python requester.py` | Start the main loop (sends requests every 30s). |
 | `python requester.py --direct` | Run without proxies. |
+| `python requester.py --workers 20` | Set number of parallel threads (default: 10). |
 | `python requester.py --check` | Run the **Parallel Proxy Checker** to prune dead proxies. |
 | `python requester.py --response` | Print full responses to the console. |
 | `python requester.py --response out.txt` | Save responses to `responses/out.txt`. |
