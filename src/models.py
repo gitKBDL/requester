@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Dict
+from dataclasses import dataclass, field
+from typing import Dict, Any
 import re
 
 @dataclass
@@ -8,6 +8,7 @@ class ParsedRequest:
     path: str
     headers: Dict[str, str]
     body: str
+    meta: Dict[str, Any] = field(default_factory=dict)
 
 def _split_head_and_body(raw_text: str) -> tuple[str, str]:
     parts = re.split(r"\r?\n\r?\n", raw_text, maxsplit=1)
@@ -20,7 +21,33 @@ def parse_raw_request(raw_text: str) -> ParsedRequest:
     if not raw_text.strip():
         raise ValueError("request text is empty")
 
-    head, body = _split_head_and_body(raw_text)
+    # Extract meta options (# @key: value) from the top
+    lines = raw_text.splitlines()
+    meta = {}
+    start_idx = 0
+    
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("# @"):
+            try:
+                # format: # @key: value
+                part = stripped[3:] # remove "# @"
+                key, val = part.split(":", 1)
+                meta[key.strip()] = val.strip()
+            except ValueError:
+                pass # ignore malformed meta lines
+        elif not stripped or stripped.startswith("#"):
+            # skip blank lines or normal comments
+            continue
+        else:
+            # First non-comment, non-empty line is the start of the request
+            start_idx = i
+            break
+            
+    # Reassemble the actual request text
+    request_text = "\n".join(lines[start_idx:])
+    
+    head, body = _split_head_and_body(request_text)
     head_lines = head.splitlines()
     if not head_lines:
         raise ValueError("missing request line")
@@ -39,4 +66,4 @@ def parse_raw_request(raw_text: str) -> ParsedRequest:
         name, value = line.split(":", 1)
         headers[name.strip()] = value.strip()
 
-    return ParsedRequest(method=method, path=path, headers=headers, body=body)
+    return ParsedRequest(method=method, path=path, headers=headers, body=body, meta=meta)

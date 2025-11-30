@@ -94,6 +94,17 @@ def process_single_request(
         
         if response_sink.enabled():
             response_sink.write(response)
+            
+        # Handle meta options
+        if "delay" in parsed.meta:
+            try:
+                delay = float(parsed.meta["delay"])
+                if delay > 0:
+                    logging.info("Meta: sleeping for %ss", delay)
+                    time.sleep(delay)
+            except ValueError:
+                logging.warning("Invalid delay value in meta: %s", parsed.meta["delay"])
+
     except Exception as exc:
         metrics.record_error()
         logging.error("Failed to send %s: %s", path.name, exc)

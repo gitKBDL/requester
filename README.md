@@ -123,13 +123,29 @@ The `requests/` folder contains template examples. They are **ignored** by defau
 ---
 
 ## ⚙️ Configuration
-Edit `config.py` to tweak the behavior:
 
-```python
-INTERVAL_SECONDS = 30       # Time between loops
-PROXY_CHECK_WORKERS = 32    # Threads for proxy checking
-VERIFY_TLS = True           # Set False to ignore SSL errors globally
-PLACEHOLDER_ROTATION = "sequential" # or "random"
+You can configure the tool by editing `config.py` OR by setting environment variables (great for Docker).
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `INTERVAL_SECONDS` | `30` | Seconds to wait between batches. |
+| `PROXY_CHECK_WORKERS` | `32` | Threads for proxy checking. |
+| `VERIFY_TLS` | `True` | Verify SSL certificates. |
+| `TIMEOUT_SECONDS` | `20` | Request timeout. |
+
+### Request-Specific Options (Meta)
+You can control behavior for individual requests using `# @key: value` comments at the top of the `.txt` file.
+
+**Supported Options:**
+- `delay`: Seconds to sleep *after* sending this specific request (per thread).
+
+**Example:**
+```http
+# @delay: 5
+POST /api/login HTTP/1.1
+Host: example.com
+
+...
 ```
 
 ---
