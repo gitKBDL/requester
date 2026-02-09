@@ -1,5 +1,6 @@
 import logging
 import concurrent.futures
+import threading
 from pathlib import Path
 from typing import List, Optional
 import requests
@@ -15,33 +16,44 @@ class ProxyPool:
         ignore_proxies: bool = False,
         file_path: Optional[Path] = None,
     ) -> None:
+        self._lock = threading.RLock()
+        self._local = threading.local()
         self._proxies = proxies
         self._index = 0
         self.ignore_proxies = ignore_proxies
         self._warned_empty = not proxies
         self._initial_count = len(proxies)
         self._exhausted = False
-        self._current: Optional[str] = None
         self._file_path = file_path
 
     def has_proxies(self) -> bool:
-        return (not self.ignore_proxies) and bool(self._proxies)
+        with self._lock:
+            return (not self.ignore_proxies) and bool(self._proxies)
 
     def allow_direct_fallback(self) -> bool:
         return self.ignore_proxies or self._initial_count == 0
 
     def exhausted(self) -> bool:
-        return self._exhausted
+        with self._lock:
+            return self._exhausted
+
+    def _get_current(self) -> Optional[str]:
+        return getattr(self._local, "current", None)
+
+    def _set_current(self, proxy: Optional[str]) -> None:
+        self._local.current = proxy
 
     def next_proxy(self) -> Optional[str]:
-        if self._current and self._current in self._proxies:
-            return self._current
-        if not self.has_proxies():
-            return None
-        proxy = self._proxies[self._index % len(self._proxies)]
-        self._index = (self._index + 1) % len(self._proxies)
-        self._current = proxy
-        return proxy
+        with self._lock:
+            current = self._get_current()
+            if current and current in self._proxies:
+                return current
+            if self.ignore_proxies or not self._proxies:
+                return None
+            proxy = self._proxies[self._index % len(self._proxies)]
+            self._index = (self._index + 1) % len(self._proxies)
+            self._set_current(proxy)
+            return proxy
 
     def _persist(self) -> None:
         if not self._file_path:
@@ -58,23 +70,24 @@ class ProxyPool:
     def mark_bad(self, proxy: Optional[str]) -> None:
         if proxy is None:
             return
-        try:
-            idx = self._proxies.index(proxy)
-        except ValueError:
-            return
-        self._proxies.pop(idx)
-        if self._index > idx:
-            self._index -= 1
-        if proxy == self._current:
-            self._current = None
-        if not self._proxies:
-            if not self.allow_direct_fallback():
-                self._exhausted = True
-                logging.error("Proxy list exhausted; stopping (no direct fallback).")
-            elif not self._warned_empty:
-                logging.warning("Proxy list is empty, running direct.")
-                self._warned_empty = True
-        self._persist()
+        with self._lock:
+            try:
+                idx = self._proxies.index(proxy)
+            except ValueError:
+                return
+            self._proxies.pop(idx)
+            if self._index > idx:
+                self._index -= 1
+            if proxy == self._get_current():
+                self._set_current(None)
+            if not self._proxies:
+                if not self.allow_direct_fallback():
+                    self._exhausted = True
+                    logging.error("Proxy list exhausted; stopping (no direct fallback).")
+                elif not self._warned_empty:
+                    logging.warning("Proxy list is empty, running direct.")
+                    self._warned_empty = True
+            self._persist()
 
 def normalize_proxy_line(line: str) -> Optional[str]:
     raw = line.strip()

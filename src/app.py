@@ -2,6 +2,7 @@ import argparse
 import logging
 import time
 import concurrent.futures
+import threading
 from pathlib import Path
 from typing import Iterable
 import requests
@@ -76,10 +77,32 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
+_thread_local = threading.local()
+_session_lock = threading.Lock()
+_sessions: set[requests.Session] = set()
+
+def _get_thread_session() -> requests.Session:
+    session = getattr(_thread_local, "session", None)
+    if session is None:
+        session = requests.Session()
+        _thread_local.session = session
+        with _session_lock:
+            _sessions.add(session)
+    return session
+
+def _close_thread_sessions() -> None:
+    with _session_lock:
+        sessions = list(_sessions)
+        _sessions.clear()
+    for session in sessions:
+        try:
+            session.close()
+        except Exception:
+            pass
+
 def process_single_request(
     path: Path,
     resolver: PlaceholderResolver,
-    session: requests.Session,
     pool: ProxyPool,
     response_sink: ResponseSink,
     metrics: Metrics
@@ -89,6 +112,7 @@ def process_single_request(
         raw_text = resolver.replace(raw_text)
         parsed = parse_raw_request(raw_text)
         
+        session = _get_thread_session()
         response = send_with_proxy_failover(parsed, session, pool)
         metrics.record_response(response.status_code)
         
@@ -138,7 +162,6 @@ def print_summary(metrics: Metrics) -> None:
         console.print(code_table)
 
 def run_loop(args: argparse.Namespace) -> None:
-    session = requests.Session()
     metrics = Metrics()
 
     proxies = [] if args.direct else load_proxies(Path(args.proxy_file))
@@ -181,7 +204,7 @@ def run_loop(args: argparse.Namespace) -> None:
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
                 futures = [
-                    executor.submit(process_single_request, path, resolver, session, pool, response_sink, metrics)
+                    executor.submit(process_single_request, path, resolver, pool, response_sink, metrics)
                     for path in files
                 ]
                 concurrent.futures.wait(futures)
@@ -192,7 +215,7 @@ def run_loop(args: argparse.Namespace) -> None:
     except ProxyExhausted as exc:
         logging.error("%s. Terminating.", exc)
     finally:
-        session.close()
+        _close_thread_sessions()
         print_summary(metrics)
 def main() -> None:
     setup_logging()

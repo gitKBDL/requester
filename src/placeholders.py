@@ -1,6 +1,7 @@
 import logging
 import re
 import random
+import threading
 from pathlib import Path
 from typing import Dict, List, Optional
 try:
@@ -12,6 +13,7 @@ class PlaceholderResolver:
     pattern = re.compile(r"\{([A-Za-z0-9_\-:]+)\}")
 
     def __init__(self, folder: Path, rotation: str = "sequential") -> None:
+        self._lock = threading.Lock()
         self.folder = folder
         self.rotation = rotation.lower()
         self.values: Dict[str, List[str]] = {}
@@ -154,8 +156,9 @@ class PlaceholderResolver:
         return self._get_from_file(name)
 
     def replace(self, text: str) -> str:
-        names = set(self.pattern.findall(text))
-        if not names:
-            return text
-        replacements = {name: self._next_value(name) for name in names}
-        return self.pattern.sub(lambda m: replacements[m.group(1)], text)
+        with self._lock:
+            names = set(self.pattern.findall(text))
+            if not names:
+                return text
+            replacements = {name: self._next_value(name) for name in names}
+            return self.pattern.sub(lambda m: replacements[m.group(1)], text)

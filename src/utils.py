@@ -1,4 +1,5 @@
 import logging
+import threading
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Optional
@@ -66,6 +67,7 @@ class ResponseSink:
             True/""    -> console dump
             "file"     -> append to responses/<file> (or absolute path)
         """
+        self._lock = threading.Lock()
         if target is None:
             self.mode = "off"
             self.path = None
@@ -85,8 +87,9 @@ class ResponseSink:
 
     def write(self, response: requests.Response) -> None:
         block = format_response_block(response)
-        if self.mode == "console":
-            print(block)
-        elif self.mode == "file" and self.path:
-            with self.path.open("a", encoding="utf-8") as fh:
-                fh.write(block)
+        with self._lock:
+            if self.mode == "console":
+                print(block)
+            elif self.mode == "file" and self.path:
+                with self.path.open("a", encoding="utf-8") as fh:
+                    fh.write(block)

@@ -52,7 +52,7 @@ def send_with_proxy_failover(
                     proxies=proxies,
                     verify_override=False if tried_insecure else None,
                 )
-                if proxy_url and not response.ok:
+                if proxy_url and response.status_code in config.PROXY_DROP_STATUSES:
                     logging.warning(
                         "Proxy %s returned HTTP %s; dropping and trying next.",
                         proxy_url,

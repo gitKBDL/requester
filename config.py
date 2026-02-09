@@ -21,6 +21,19 @@ def get_bool(key, default):
         return default
     return val.lower() in ("true", "1", "yes", "on")
 
+def get_int_set(key, default_csv):
+    raw = os.getenv(key, default_csv)
+    values = set()
+    for part in str(raw).split(","):
+        token = part.strip()
+        if not token:
+            continue
+        try:
+            values.add(int(token))
+        except ValueError:
+            continue
+    return values
+
 # Folder that holds *.txt files with raw HTTP requests.
 REQUESTS_DIR = Path(get_env("REQUESTS_DIR", Path(__file__).parent / "requests"))
 
@@ -57,3 +70,6 @@ TIMEOUT_SECONDS = get_env("TIMEOUT_SECONDS", 20, int)
 
 # Headers that will be stripped before sending (requests sets these automatically).
 SKIP_HEADERS = {"content-length"}
+
+# HTTP status codes that cause a proxy to be dropped (default: only 407).
+PROXY_DROP_STATUSES = get_int_set("PROXY_DROP_STATUSES", "407")
