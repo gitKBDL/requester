@@ -50,3 +50,22 @@ content-type: application/json
     assert req.headers["Host"] == "test.host.net"
     assert req.headers["accept"] == "*/*"
     assert req.body.strip() == '{"data":{"data"}}'
+
+def test_headers_list_preserves_duplicates():
+    raw = """GET / HTTP/1.1
+Host: example.com
+Cookie: a=1
+Cookie: b=2
+X-Test: 1
+X-Test: 2
+
+"""
+    req = parse_raw_request(raw)
+    assert req.headers_list == [
+        ("Host", "example.com"),
+        ("Cookie", "a=1"),
+        ("Cookie", "b=2"),
+        ("X-Test", "1"),
+        ("X-Test", "2"),
+    ]
+    assert req.headers["Cookie"] == "b=2"

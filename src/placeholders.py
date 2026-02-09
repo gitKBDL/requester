@@ -5,7 +5,7 @@ import threading
 from pathlib import Path
 from typing import Dict, List, Optional
 try:
-    from faker import Faker
+    from faker import Faker  # type: ignore[reportMissingImports]
 except ImportError:
     Faker = None  # Optional dependency handling, though we added it to requirements
 

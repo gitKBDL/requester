@@ -113,7 +113,12 @@ def process_single_request(
         parsed = parse_raw_request(raw_text)
         
         session = _get_thread_session()
-        response = send_with_proxy_failover(parsed, session, pool)
+        response = send_with_proxy_failover(
+            parsed,
+            session,
+            pool,
+            stream=response_sink.enabled(),
+        )
         metrics.record_response(response.status_code)
         
         if response_sink.enabled():
@@ -196,25 +201,26 @@ def run_loop(args: argparse.Namespace) -> None:
         logging.info("Response dump enabled (%s)", mode)
 
     try:
-        while True:
-            files = list(iter_request_files())
-            if not files:
-                logging.warning("No *.txt request files found in %s, stopping.", config.REQUESTS_DIR)
-                break
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
+            while True:
+                files = list(iter_request_files())
+                if not files:
+                    logging.warning("No *.txt request files found in %s, stopping.", config.REQUESTS_DIR)
+                    break
 
-            with concurrent.futures.ThreadPoolExecutor(max_workers=args.workers) as executor:
                 futures = [
                     executor.submit(process_single_request, path, resolver, pool, response_sink, metrics)
                     for path in files
                 ]
                 concurrent.futures.wait(futures)
 
-            time.sleep(config.INTERVAL_SECONDS)
+                time.sleep(config.INTERVAL_SECONDS)
     except KeyboardInterrupt:
         logging.info("Interrupted with Ctrl+C, exiting cleanly.")
     except ProxyExhausted as exc:
         logging.error("%s. Terminating.", exc)
     finally:
+        pool.flush()
         _close_thread_sessions()
         print_summary(metrics)
 def main() -> None:

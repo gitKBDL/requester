@@ -49,14 +49,14 @@ RESPONSES_DIR = Path(get_env("RESPONSES_DIR", Path(__file__).parent / "responses
 # URL used by --check to validate proxies.
 PROXY_CHECK_URL = get_env("PROXY_CHECK_URL", "https://httpbin.org/get")
 
-# Max parallel workers when checking proxies.
-PROXY_CHECK_WORKERS = get_env("PROXY_CHECK_WORKERS", 32, int)
+ # Max parallel workers when checking proxies.
+PROXY_CHECK_WORKERS: int = int(get_env("PROXY_CHECK_WORKERS", 32, int))
 
 # Placeholder rotation strategy: "sequential" (round-robin) or "random".
 PLACEHOLDER_ROTATION = get_env("PLACEHOLDER_ROTATION", "sequential")
 
 # Delay between sending batches of requests (in seconds).
-INTERVAL_SECONDS = get_env("INTERVAL_SECONDS", 30, int)
+INTERVAL_SECONDS: int = int(get_env("INTERVAL_SECONDS", 30, int))
 
 # Scheme used to build the final URL. Change to "http" if needed.
 SCHEME = get_env("SCHEME", "https")
@@ -66,10 +66,17 @@ DEFAULT_HOST = get_env("DEFAULT_HOST", None)
 
 # Network controls.
 VERIFY_TLS = get_bool("VERIFY_TLS", True)
-TIMEOUT_SECONDS = get_env("TIMEOUT_SECONDS", 20, int)
+TIMEOUT_SECONDS: int = int(get_env("TIMEOUT_SECONDS", 20, int))
 
 # Headers that will be stripped before sending (requests sets these automatically).
 SKIP_HEADERS = {"content-length"}
 
 # HTTP status codes that cause a proxy to be dropped (default: only 407).
-PROXY_DROP_STATUSES = get_int_set("PROXY_DROP_STATUSES", "407")
+PROXY_DROP_STATUSES: set[int] = get_int_set("PROXY_DROP_STATUSES", "407")
+
+# Debounce interval (seconds) for writing proxies.txt.
+PROXIES_PERSIST_INTERVAL: int = int(get_env("PROXIES_PERSIST_INTERVAL", 2, int))
+
+# Response dump controls (bytes). 0 or negative means no limit.
+RESPONSE_MAX_BYTES: int = int(get_env("RESPONSE_MAX_BYTES", 1048576, int))
+RESPONSE_DUMP_CHUNK_SIZE: int = int(get_env("RESPONSE_DUMP_CHUNK_SIZE", 16384, int))

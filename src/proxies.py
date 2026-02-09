@@ -1,6 +1,7 @@
 import logging
 import concurrent.futures
 import threading
+import time
 from pathlib import Path
 from typing import List, Optional
 import requests
@@ -25,6 +26,8 @@ class ProxyPool:
         self._initial_count = len(proxies)
         self._exhausted = False
         self._file_path = file_path
+        self._dirty = False
+        self._last_persist = 0.0
 
     def has_proxies(self) -> bool:
         with self._lock:
@@ -64,8 +67,19 @@ class ProxyPool:
             if self._proxies:
                 data += "\n"
             self._file_path.write_text(data, encoding="utf-8")
+            self._last_persist = time.monotonic()
+            self._dirty = False
         except Exception as exc:  # noqa: BLE001
             logging.error("Failed to update proxy file %s: %s", self._file_path, exc)
+
+    def _persist_throttled(self) -> None:
+        if not self._file_path:
+            return
+        now = time.monotonic()
+        if (now - self._last_persist) >= config.PROXIES_PERSIST_INTERVAL:
+            self._persist()
+        else:
+            self._dirty = True
 
     def mark_bad(self, proxy: Optional[str]) -> None:
         if proxy is None:
@@ -87,7 +101,12 @@ class ProxyPool:
                 elif not self._warned_empty:
                     logging.warning("Proxy list is empty, running direct.")
                     self._warned_empty = True
-            self._persist()
+            self._persist_throttled()
+
+    def flush(self) -> None:
+        with self._lock:
+            if self._dirty:
+                self._persist()
 
 def normalize_proxy_line(line: str) -> Optional[str]:
     raw = line.strip()

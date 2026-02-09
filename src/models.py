@@ -1,12 +1,14 @@
 from dataclasses import dataclass, field
-from typing import Dict, Any
+from typing import Any, List, Tuple, MutableMapping, Dict
 import re
+from requests.structures import CaseInsensitiveDict
 
 @dataclass
 class ParsedRequest:
     method: str
     path: str
-    headers: Dict[str, str]
+    headers: MutableMapping[str, str]
+    headers_list: List[Tuple[str, str]]
     body: str
     meta: Dict[str, Any] = field(default_factory=dict)
 
@@ -60,7 +62,8 @@ def parse_raw_request(raw_text: str) -> ParsedRequest:
 
     method = None
     path = None
-    headers: Dict[str, str] = {}
+    headers_list: List[Tuple[str, str]] = []
+    headers: MutableMapping[str, str] = CaseInsensitiveDict()
     pseudo: Dict[str, str] = {}
 
     start_idx = 0
@@ -85,7 +88,10 @@ def parse_raw_request(raw_text: str) -> ParsedRequest:
             pseudo[name.strip().lower()] = value.strip()
             continue
         name, value = line.split(":", 1)
-        headers[name.strip()] = value.strip()
+        name = name.strip()
+        value = value.strip()
+        headers_list.append((name, value))
+        headers[name] = value
 
     if method is None or path is None:
         method = method or pseudo.get("method")
@@ -96,9 +102,17 @@ def parse_raw_request(raw_text: str) -> ParsedRequest:
     authority = pseudo.get("authority")
     if authority and "Host" not in headers:
         headers["Host"] = authority
+        headers_list.append(("Host", authority))
 
     scheme = pseudo.get("scheme")
     if scheme and authority and not str(path).lower().startswith(("http://", "https://")):
         path = f"{scheme}://{authority}{path}"
 
-    return ParsedRequest(method=method, path=path, headers=headers, body=body, meta=meta)
+    return ParsedRequest(
+        method=method,
+        path=path,
+        headers=headers,
+        headers_list=headers_list,
+        body=body,
+        meta=meta,
+    )
