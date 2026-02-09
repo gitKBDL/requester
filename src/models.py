@@ -48,22 +48,57 @@ def parse_raw_request(raw_text: str) -> ParsedRequest:
     request_text = "\n".join(lines[start_idx:])
     
     head, body = _split_head_and_body(request_text)
-    head_lines = head.splitlines()
+    head_lines = [line for line in head.splitlines() if line.strip()]
     if not head_lines:
         raise ValueError("missing request line")
 
-    try:
-        method, path, _ = head_lines[0].strip().split()
-    except ValueError as exc:  # not enough values to unpack
-        raise ValueError(f"cannot parse request line: {head_lines[0]}") from exc
+    def looks_like_request_line(line: str) -> bool:
+        parts = line.strip().split()
+        if len(parts) != 3:
+            return False
+        return parts[2].upper().startswith("HTTP/")
 
+    method = None
+    path = None
     headers: Dict[str, str] = {}
-    for line in head_lines[1:]:
-        if not line.strip():
-            continue
+    pseudo: Dict[str, str] = {}
+
+    start_idx = 0
+    if looks_like_request_line(head_lines[0]):
+        try:
+            method, path, _ = head_lines[0].strip().split()
+        except ValueError as exc:  # not enough values to unpack
+            raise ValueError(f"cannot parse request line: {head_lines[0]}") from exc
+        start_idx = 1
+    elif ":" not in head_lines[0]:
+        raise ValueError(f"cannot parse request line: {head_lines[0]}")
+
+    for line in head_lines[start_idx:]:
         if ":" not in line:
             raise ValueError(f"invalid header format: {line}")
+        if line.startswith(":"):
+            # Pseudo-headers (HTTP/2 style), e.g. :method: POST
+            rest = line[1:]
+            if ":" not in rest:
+                raise ValueError(f"invalid pseudo-header format: {line}")
+            name, value = rest.split(":", 1)
+            pseudo[name.strip().lower()] = value.strip()
+            continue
         name, value = line.split(":", 1)
         headers[name.strip()] = value.strip()
+
+    if method is None or path is None:
+        method = method or pseudo.get("method")
+        path = path or pseudo.get("path")
+        if not method or not path:
+            raise ValueError("missing request line or pseudo-headers (:method/:path)")
+
+    authority = pseudo.get("authority")
+    if authority and "Host" not in headers:
+        headers["Host"] = authority
+
+    scheme = pseudo.get("scheme")
+    if scheme and authority and not str(path).lower().startswith(("http://", "https://")):
+        path = f"{scheme}://{authority}{path}"
 
     return ParsedRequest(method=method, path=path, headers=headers, body=body, meta=meta)

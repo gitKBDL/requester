@@ -28,6 +28,17 @@ class PlaceholderResolver:
             self._faker = Faker()
         else:
             self._faker = None
+        # Minimal fallback for faker-like placeholders when Faker is unavailable.
+        self._faker_fallback_aliases = {
+            "email": lambda: f"user{random.randint(1000, 9999)}@example.com",
+            "first_name": lambda: random.choice(["Alex", "Sam", "Jordan", "Taylor"]),
+            "last_name": lambda: random.choice(["Smith", "Lee", "Brown", "Garcia"]),
+            "user_agent": lambda: "Mozilla/5.0 (compatible; Requester/1.0)",
+            "country": lambda: "United States",
+        }
+        self._faker_fallback_methods = {
+            "city": lambda: random.choice(["Paris", "Berlin", "Tokyo", "Oslo"]),
+        }
 
     def _path_for(self, name: str) -> Path:
         direct = self.folder / name
@@ -85,27 +96,37 @@ class PlaceholderResolver:
 
     def _try_faker(self, name: str) -> Optional[str]:
         """Try to resolve using Faker if available."""
-        if not self._faker:
+        if self._faker:
+            if name == "email":
+                return self._faker.email()
+            if name == "first_name":
+                return self._faker.first_name()
+            if name == "last_name":
+                return self._faker.last_name()
+            if name == "user_agent":
+                return self._faker.user_agent()
+            if name == "country":
+                return self._faker.country()
+
+            if name.startswith("faker:"):
+                try:
+                    method_name = name.split(":", 1)[1]
+                    if hasattr(self._faker, method_name):
+                        return str(getattr(self._faker, method_name)())
+                except IndexError:
+                    pass
             return None
-            
-        if name == "email":
-            return self._faker.email()
-        if name == "first_name":
-            return self._faker.first_name()
-        if name == "last_name":
-            return self._faker.last_name()
-        if name == "user_agent":
-            return self._faker.user_agent()
-        if name == "country":
-            return self._faker.country()
-        
+
+        # Fallback when Faker isn't installed.
+        if name in self._faker_fallback_aliases:
+            return self._faker_fallback_aliases[name]()
         if name.startswith("faker:"):
             try:
                 method_name = name.split(":", 1)[1]
-                if hasattr(self._faker, method_name):
-                    return str(getattr(self._faker, method_name)())
             except IndexError:
-                pass
+                return None
+            if method_name in self._faker_fallback_methods:
+                return self._faker_fallback_methods[method_name]()
         return None
 
     def _get_from_file(self, name: str) -> str:

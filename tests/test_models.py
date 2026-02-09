@@ -35,3 +35,18 @@ def test_parse_malformed_line():
     with pytest.raises(ValueError, match="cannot parse request line"):
         parse_raw_request("NOT_HTTP_REQUEST\nHost: foo")
 
+def test_parse_pseudo_headers_only():
+    raw = """:method: POST
+:scheme: https
+:path: /path
+:authority: test.host.net
+accept: */*
+content-type: application/json
+
+{"data":{"data"}}"""
+    req = parse_raw_request(raw)
+    assert req.method == "POST"
+    assert req.path == "https://test.host.net/path"
+    assert req.headers["Host"] == "test.host.net"
+    assert req.headers["accept"] == "*/*"
+    assert req.body.strip() == '{"data":{"data"}}'
