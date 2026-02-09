@@ -132,6 +132,22 @@ You can configure the tool by editing `config.py` OR by setting environment vari
 | `PROXY_CHECK_WORKERS` | `32` | Threads for proxy checking. |
 | `VERIFY_TLS` | `True` | Verify SSL certificates. |
 | `TIMEOUT_SECONDS` | `20` | Request timeout. |
+| `PROXY_DROP_STATUSES` | `407` | Comma-separated HTTP status codes that drop a proxy. |
+| `PROXIES_PERSIST_INTERVAL` | `2` | Debounce interval (seconds) for writing `proxies.txt`. |
+| `RESPONSE_MAX_BYTES` | `1048576` | Max bytes to dump per response (0/<=0 disables). |
+| `RESPONSE_DUMP_CHUNK_SIZE` | `16384` | Chunk size for streaming response dumps. |
+
+**Docker example (env override):**
+```yaml
+services:
+  requester:
+    build: .
+    environment:
+      - INTERVAL_SECONDS=10
+      - VERIFY_TLS=false
+      - PROXY_DROP_STATUSES=407,429
+      - RESPONSE_MAX_BYTES=200000
+```
 
 ### Request-Specific Options (Meta)
 You can control behavior for individual requests using `# @key: value` comments at the top of the `.txt` file.

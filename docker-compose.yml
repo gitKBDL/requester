@@ -3,6 +3,11 @@ version: '3.8'
 services:
   requester:
     build: .
+    # environment:
+    #   - INTERVAL_SECONDS=10
+    #   - VERIFY_TLS=false
+    #   - PROXY_DROP_STATUSES=407,429
+    #   - RESPONSE_MAX_BYTES=200000
     volumes:
       - ./requests:/app/requests
       - ./proxies.txt:/app/proxies.txt
